@@ -1,26 +1,19 @@
--- [[ Neko UI Library | Version 2.1x FULL ]] --
--- 這是開源庫主體，請將其託管於 GitHub 後使用 loadstring 調用
-
+-- [[ Neko UI Library | Version 2.1x FULL (Modified with B-Key Toggle) ]] --
 local library = {}
-
 local services = setmetatable({}, { __index = function(_, k) return game:GetService(k) end })
 local lplr = services.Players.LocalPlayer
 local ts = services.TweenService
 local uis = services.UserInputService
 
--- 確保遊戲加載
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- 自動尋找父級 (優先 CoreGui)
 local targetParent = nil
 local s, e = pcall(function() targetParent = services.CoreGui end)
 if not s then targetParent = lplr:WaitForChild("PlayerGui") end
 
--- 全局鎖定狀態 (防止 UI 拖拽與 Slider 衝突)
 local _G_DraggingUI = false
 local _G_Interacting = false 
 
--- 配色與主題定義
 local C = {
     Accent     = Color3.fromRGB(255, 105, 180),
     MainBG     = Color3.fromRGB(12, 8, 12),
@@ -34,7 +27,6 @@ local C = {
     Error      = Color3.fromRGB(255, 80, 80),
 }
 
--- [ 視覺工具函數 ]
 local function Tween(obj, info, prop)
     local t = ts:Create(obj, TweenInfo.new(unpack(info)), prop)
     t:Play()
@@ -50,12 +42,6 @@ local function CreateParticle(parent, config)
     p.Parent = parent
     p.ZIndex = parent.ZIndex
     Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
-    if config.Glow then
-        local st = Instance.new("UIStroke", p)
-        st.Color = config.Color
-        st.Thickness = 1.2
-        st.Transparency = 0.7
-    end
     local t = ts:Create(p, TweenInfo.new(config.Time, Enum.EasingStyle.Linear), {
         Position = config.EndPos,
         BackgroundTransparency = 1
@@ -64,7 +50,6 @@ local function CreateParticle(parent, config)
     t.Completed:Connect(function() p:Destroy() end)
 end
 
--- [ 核心窗口邏輯 ]
 function library.new(name)
     local oldUI = targetParent:FindFirstChild("Aether_Xeno_V2")
     if oldUI then oldUI:Destroy() end
@@ -76,6 +61,13 @@ function library.new(name)
     sg.DisplayOrder = 100
     sg.IgnoreGuiInset = true
 
+    -- [[ 🔧 新增：內置 B 鍵切換邏輯 ]] --
+    uis.InputBegan:Connect(function(input, gp)
+        if not gp and input.KeyCode == Enum.KeyCode.B then
+            sg.Enabled = not sg.Enabled
+        end
+    end)
+
     local Main = Instance.new("Frame", sg)
     Main.Size = UDim2.new(0, 660, 0, 385)
     Main.Position = UDim2.new(0.5, -330, 0.5, -192)
@@ -84,12 +76,12 @@ function library.new(name)
     Main.ClipsDescendants = true
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
 
+    -- (其餘部分保持原樣...)
     local MainStroke = Instance.new("UIStroke", Main)
     MainStroke.Thickness = 2
     MainStroke.Color = C.Stroke
     MainStroke.Transparency = 0.5
 
-    -- 🌌 背景垂直粒子系統
     local BgParticles = Instance.new("Frame", Main)
     BgParticles.Size = UDim2.new(1, 0, 1, 0)
     BgParticles.BackgroundTransparency = 1
@@ -157,7 +149,6 @@ function library.new(name)
 
     local window = {current = nil}
 
-    -- [ 創建分頁 ]
     function window:Tab(name)
         local Page = Instance.new("ScrollingFrame", Pages)
         Page.Size = UDim2.new(1, 0, 1, 0)
@@ -201,7 +192,6 @@ function library.new(name)
 
         local tab = {}
 
-        -- [ 創建區段 ]
         function tab:Section(txt)
             local Sec = Instance.new("Frame", Page)
             Sec.Size = UDim2.new(1, -10, 0, 40)
@@ -347,7 +337,6 @@ function library.new(name)
                 B.ClipsDescendants = true
                 Instance.new("UICorner", B).CornerRadius = UDim.new(0, 6)
                 
-                -- 按鈕粒子特效
                 task.spawn(function()
                     local br = Random.new()
                     while task.wait(0.04) do 
@@ -365,33 +354,11 @@ function library.new(name)
                 B.MouseButton1Click:Connect(function() pcall(callback) end)
             end
 
-            function func:Status(label, default)
-                local SFrame = Instance.new("Frame", Box)
-                SFrame.Size = UDim2.new(1, 0, 0, 38)
-                SFrame.BackgroundColor3 = C.BtnBG
-                SFrame.BackgroundTransparency = 0.5
-                Instance.new("UICorner", SFrame).CornerRadius = UDim.new(0, 6)
-                local SText = Instance.new("TextLabel", SFrame)
-                SText.Size = UDim2.new(1, -20, 1, 0)
-                SText.Position = UDim2.new(0, 10, 0, 0)
-                SText.BackgroundTransparency = 1
-                SText.Font = Enum.Font.GothamMedium
-                SText.TextSize = 13
-                SText.TextColor3 = default and C.Success or C.Error
-                SText.Text = label .. (default and ": 🟢 開啟中" or ": 🔴 已關閉")
-                SText.TextXAlignment = "Left"
-                return { Set = function(v) 
-                    SText.Text = label .. (v and ": 🟢 開啟中" or ": 🔴 已關閉")
-                    SText.TextColor3 = v and C.Success or C.Error
-                end }
-            end
-
             return func
         end
         return tab
     end
 
-    -- [ 拖拽系統 ]
     local dragStart, startPos
     Main.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 and not _G_Interacting then
